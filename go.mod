@@ -1,4 +1,4 @@
-module test
+module simplereading
 
 go 1.15
 

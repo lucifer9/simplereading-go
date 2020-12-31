@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"bytes"
+	"compress/gzip"
 	"errors"
 	"fmt"
 	"io"
@@ -19,6 +20,7 @@ import (
 	"time"
 
 	readability "github.com/go-shiori/go-readability"
+	"github.com/google/brotli/go/cbrotli"
 	"golang.org/x/net/html"
 	"golang.org/x/net/html/charset"
 	"golang.org/x/text/encoding"
@@ -49,8 +51,8 @@ func defaultHandler(w http.ResponseWriter, req *http.Request) {
 		r.Host = "m.booklink.me"
 		r.URL.Host = r.Host
 		r.URL.Scheme = "https"
-		r.Header.Del("Accept-Encoding")
-		// log.Printf("\n%s: \t%+v\n\n", "req", r)
+		r.Header.Set("Accept-Encoding", "gzip")
+		log.Println(r.URL.String())
 	}
 	rp.ModifyResponse = func(r *http.Response) error {
 
@@ -72,28 +74,30 @@ func defaultHandler(w http.ResponseWriter, req *http.Request) {
 		if err != nil {
 			return err
 		}
-		// if c := r.Header.Get("Content-Encoding"); c == "gzip" {
-		// 	log.Printf("\n%d\n\n", len(b))
-		// 	gr, _ := gzip.NewReader(bytes.NewBuffer(b))
-		// 	b, err = ioutil.ReadAll(gr)
-		// 	log.Printf("\n%d\n\n", len(b))
-		// 	gr.Close()
-		// 	if err != nil {
-		// 		return err
-		// 	}
-		// }
+		// log.Println(r.Header.Get("Content-Encoding"))
+		if c := r.Header.Get("Content-Encoding"); c == "gzip" {
+			// log.Printf("\n%d\n\n", len(b))
+			gr, _ := gzip.NewReader(bytes.NewBuffer(b))
+			b, err = ioutil.ReadAll(gr)
+			// log.Printf("\n%d\n\n", len(b))
+			gr.Close()
+			if err != nil {
+				return err
+			}
+		}
 		b = bytes.ReplaceAll(b, []byte("adsbygoogle"), []byte("xxxxxxx"))
 		if index := bytes.Index(b, []byte("slist sec")); index != -1 {
 			b = bytes.ReplaceAll(b, []byte("<body>"), []byte("<body><style>a{color:#011;}</style><style>ul.list.sec {display: none;}</style>"))
 		}
-		// newb := new(bytes.Buffer)
-		// gw := gzip.NewWriter(newb)
-		// gw.Write(b)
-		// gw.Close()
-		// b = newb.Bytes()
+		newb := new(bytes.Buffer)
+		gw := cbrotli.NewWriter(newb, cbrotli.WriterOptions{Quality: 11, LGWin: 24})
+		gw.Write(b)
+		gw.Close()
+		b = newb.Bytes()
 		body := ioutil.NopCloser(bytes.NewReader(b))
 		r.Body = body
 		r.ContentLength = int64(len(b))
+		r.Header.Set("Content-Encoding", "br")
 		r.Header.Set("Content-Length", strconv.Itoa(len(b)))
 		// log.Printf("\n%s: \t%+v\n\n", "resp", r)
 		return nil
@@ -101,7 +105,6 @@ func defaultHandler(w http.ResponseWriter, req *http.Request) {
 
 	qs := req.URL.Query()
 	dest := qs.Get("dest")
-	file := qs.Get("file")
 	listen := qs.Get("listen")
 	if dest != "" {
 		fmt.Println(dest)
@@ -131,7 +134,7 @@ func defaultHandler(w http.ResponseWriter, req *http.Request) {
 				return
 			}
 			content := article.TextContent
-			if getMP3(content, outFile) != nil {
+			if err := getMP3(content, outFile); err != nil {
 				error500(w, err)
 				return
 			}
@@ -139,26 +142,9 @@ func defaultHandler(w http.ResponseWriter, req *http.Request) {
 		}
 		w.WriteHeader(http.StatusOK)
 		w.Header().Set("Content-Type", "text/html;charset=UTF-8")
-		mp3 := SCHEME + HOST + ":" + strconv.Itoa(PORT) + `/?file=` + out
-		js := SCHEME + HOST + ":" + strconv.Itoa(PORT) + `/?file=ac_quicktime.js`
-		toWrite := `<!doctype html><html><body><script type="text/javascript" src="` + js + `"></script><audio id="mp3" controls><source src="` + mp3 + `" type="audio/mpeg"><script>QT_WriteOBJECT("` + mp3 + `","", "","");</script></audio></body></html>`
+		mp3 := SCHEME + HOST + ":" + strconv.Itoa(PORT) + `/` + out
+		toWrite := `<!doctype html><html><body><audio controls height="270" width="480"><source src="` + mp3 + `"></audio></body></html>`
 		w.Write([]byte(toWrite))
-	} else if file != "" {
-		fmt.Println(file)
-		fullPath := filepath.Join(WEBROOT, file)
-		buf, err := ioutil.ReadFile(filepath.FromSlash(fullPath))
-		if err != nil {
-			error500(w, err)
-			return
-		}
-		w.WriteHeader(http.StatusOK)
-		if strings.HasSuffix(file, ".js") {
-			w.Header().Set("Content-Type", "text/javascript;charset=UTF-8")
-		} else {
-			w.Header().Set("Content-Type", "audio/mpeg")
-		}
-		w.Header().Set("Content-Length", strconv.Itoa(len(buf)))
-		w.Write(buf)
 	} else {
 		rp.ServeHTTP(w, req)
 	}
@@ -179,12 +165,24 @@ func main() {
 	TTS_SPD = 10
 	TTS_VOL = 8
 	UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/75.0.3770.90 Safari/537.36"
-	HOST = "bj.dujie.name"
-	PORT = 8888
+	if len(os.Args) > 1 {
+		HOST = os.Args[1] + ".dujie.name"
+	} else {
+		HOST = "bj.dujie.name"
+	}
+	if len(os.Args) > 2 {
+		PORT, _ = strconv.Atoi(os.Args[2])
+	} else {
+		PORT = 8888
+	}
 	SCHEME = "https://"
 	MP3CACHE = make(map[string]string)
 	http.HandleFunc("/", defaultHandler)
-	http.ListenAndServe("127.0.0.1:9001", nil)
+	localPort := "9001"
+	if len(os.Args) > 3 {
+		localPort = os.Args[3]
+	}
+	http.ListenAndServe("127.0.0.1:"+localPort, nil)
 }
 
 func getMP3(content string, out string) error {
@@ -266,9 +264,6 @@ func getContent(srcPath string) (*readability.Article, error) {
 	if article == nil {
 		return article, errors.New("null article")
 	}
-	// if buf == nil {
-	// 	return article, nil
-	// }
 	nextLink := getNextLink(buf)
 	if nextLink == "" {
 		return article, nil
@@ -285,9 +280,6 @@ func getContent(srcPath string) (*readability.Article, error) {
 		}
 		article.Content += article1.Content
 		article.TextContent += article1.TextContent
-		// if buf1 == nil {
-		// 	break
-		// }
 		nextLink = getNextLink(buf1)
 	}
 
@@ -372,21 +364,9 @@ func mergeMP3(infiles map[int][]byte, out string) error {
 	if err != nil {
 		return err
 	}
-	for i := 0; i < len(infiles); i++ {
 
+	for i := 0; i < len(infiles); i++ {
 		outfile.Write(infiles[i])
-		// for {
-		// 	// Read the next frame from the input buf.
-		// 	frame := mp3lib.NextFrame(bytes.NewReader(infiles[i]))
-		// 	if frame == nil {
-		// 		break
-		// 	}
-		// 	// Write the frame to the output file.
-		// 	_, err := outfile.Write(frame.RawBytes)
-		// 	if err != nil {
-		// 		return err
-		// 	}
-		// }
 	}
 	return nil
 }

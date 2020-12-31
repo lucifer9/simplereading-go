@@ -5,3 +5,5 @@
 - 使用[百度在线语音合成](https://ai.baidu.com/tech/speech/tts)生成MP3实现听书功能
 
 以上可以自由组合，配合iOS捷径或者Android Tasker也可实现自动化
+
+听书功能需要一个web服务器来做file server

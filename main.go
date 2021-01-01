@@ -19,7 +19,7 @@ import (
 	"strings"
 	"time"
 
-	readability "github.com/go-shiori/go-readability"
+	"github.com/go-shiori/go-readability"
 	"github.com/google/brotli/go/cbrotli"
 	"golang.org/x/net/html"
 	"golang.org/x/net/html/charset"
@@ -29,19 +29,19 @@ import (
 )
 
 var (
-	BOOKSITE    string
-	FONTSIZE    int
-	WEBROOT     string
-	TTS_BASE    string
-	TTS_SEG_LEN int
-	TTS_PER     int
-	TTS_SPD     int
-	TTS_VOL     int
-	UA          string
-	HOST        string
-	PORT        int
-	SCHEME      string
-	MP3CACHE    map[string]string
+	BOOKSITE  string
+	FONTSIZE  int
+	WEBROOT   string
+	TtsBase   string
+	TtsSegLen int
+	TtsPer    int
+	TtsSpd    int
+	TtsVol    int
+	UA        string
+	HOST      string
+	PORT      int
+	SCHEME    string
+	MP3CACHE  map[string]string
 )
 
 func defaultHandler(w http.ResponseWriter, req *http.Request) {
@@ -80,7 +80,7 @@ func defaultHandler(w http.ResponseWriter, req *http.Request) {
 			gr, _ := gzip.NewReader(bytes.NewBuffer(b))
 			b, err = ioutil.ReadAll(gr)
 			// log.Printf("\n%d\n\n", len(b))
-			gr.Close()
+			_ = gr.Close()
 			if err != nil {
 				return err
 			}
@@ -91,8 +91,8 @@ func defaultHandler(w http.ResponseWriter, req *http.Request) {
 		}
 		newb := new(bytes.Buffer)
 		gw := cbrotli.NewWriter(newb, cbrotli.WriterOptions{Quality: 11, LGWin: 24})
-		gw.Write(b)
-		gw.Close()
+		_, _ = gw.Write(b)
+		_ = gw.Close()
 		b = newb.Bytes()
 		body := ioutil.NopCloser(bytes.NewReader(b))
 		r.Body = body
@@ -120,7 +120,7 @@ func defaultHandler(w http.ResponseWriter, req *http.Request) {
 		toWrite := `<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0" /><title>` +
 			title + `</title></head><body><h3>` + title + `</h3><style>body {background-color: black;font-size:` + strconv.Itoa(FONTSIZE) +
 			";color:#fff;}</style>\n" + content + `</body></html>`
-		w.Write([]byte(toWrite))
+		_, _ = w.Write([]byte(toWrite))
 	} else if listen != "" {
 		fmt.Println(listen)
 		out := MP3CACHE[listen]
@@ -144,7 +144,7 @@ func defaultHandler(w http.ResponseWriter, req *http.Request) {
 		w.Header().Set("Content-Type", "text/html;charset=UTF-8")
 		mp3 := SCHEME + HOST + ":" + strconv.Itoa(PORT) + `/` + out
 		toWrite := `<!doctype html><html><body><audio controls height="270" width="480"><source src="` + mp3 + `"></audio></body></html>`
-		w.Write([]byte(toWrite))
+		_, _ = w.Write([]byte(toWrite))
 	} else {
 		rp.ServeHTTP(w, req)
 	}
@@ -153,17 +153,17 @@ func defaultHandler(w http.ResponseWriter, req *http.Request) {
 
 func error500(w http.ResponseWriter, err error) {
 	w.WriteHeader(http.StatusInternalServerError)
-	w.Write([]byte(err.Error()))
+	_, _ = w.Write([]byte(err.Error()))
 }
 func main() {
 	BOOKSITE = "https://m.booklink.me/"
 	FONTSIZE = 17
 	WEBROOT = "/tmp/audio"
-	TTS_BASE = "http://tsn.baidu.com/text2audio"
-	TTS_SEG_LEN = 500
-	TTS_PER = 5118
-	TTS_SPD = 10
-	TTS_VOL = 8
+	TtsBase = "http://tsn.baidu.com/text2audio"
+	TtsSegLen = 500
+	TtsPer = 5118
+	TtsSpd = 10
+	TtsVol = 8
 	UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/75.0.3770.90 Safari/537.36"
 	if len(os.Args) > 1 {
 		HOST = os.Args[1] + ".dujie.name"
@@ -182,7 +182,7 @@ func main() {
 	if len(os.Args) > 3 {
 		localPort = os.Args[3]
 	}
-	http.ListenAndServe("127.0.0.1:"+localPort, nil)
+	_ = http.ListenAndServe("127.0.0.1:"+localPort, nil)
 }
 
 func getMP3(content string, out string) error {
@@ -196,8 +196,8 @@ func getMP3(content string, out string) error {
 		c := make(chan bool)
 		chans = append(chans, c)
 		go func(index int, success chan bool) {
-			b := index * TTS_SEG_LEN
-			e := (index + 1) * TTS_SEG_LEN
+			b := index * TtsSegLen
+			e := (index + 1) * TtsSegLen
 			if e > total {
 				e = total
 			}
@@ -206,20 +206,20 @@ func getMP3(content string, out string) error {
 			// data={'lan':'zh','ie':'UTF-8','spd':10,'tex':urllib.parse.quote(words), 'per': 5118, 'cuid':'baidu_speech_demo','idx':1,'cod':2,'ctp':1,'pdt':1,'vol':8,'pit':5,'_res_tag_':'audio'}
 			data.Set("lan", "zh")
 			data.Set("ie", "UTF-8")
-			data.Set("spd", strconv.Itoa(TTS_SPD))
+			data.Set("spd", strconv.Itoa(TtsSpd))
 			data.Set("tex", seq)
-			data.Set("per", strconv.Itoa(TTS_PER))
+			data.Set("per", strconv.Itoa(TtsPer))
 			data.Set("cuid", "baidu_speech_demo")
 			data.Set("idx", "1")
 			data.Set("cod", "2")
 			data.Set("ctp", "1")
 			data.Set("pdt", "1")
-			data.Set("vol", strconv.Itoa(TTS_VOL))
+			data.Set("vol", strconv.Itoa(TtsVol))
 			data.Set("pit", "5")
 			data.Set("_res_tag_", "audio")
 
 			client := &http.Client{}
-			req, err := http.NewRequest(http.MethodPost, TTS_BASE, strings.NewReader(data.Encode()))
+			req, err := http.NewRequest(http.MethodPost, TtsBase, strings.NewReader(data.Encode()))
 			if err != nil {
 				log.Printf("Error creating tts req %v\n", req)
 				c <- false
@@ -227,13 +227,16 @@ func getMP3(content string, out string) error {
 			}
 			resp, err := client.Do(req)
 
-			if err != nil || resp.Header.Get("Content-Type") != "audio/mp3" {
+			if err != nil || (resp != nil && resp.Header.Get("Content-Type") != "audio/mp3") {
 				buf, _ := ioutil.ReadAll(resp.Body)
 				log.Printf("Error get tts resp %v\n", string(buf))
 				c <- false
 				return
 			}
-			defer resp.Body.Close()
+			defer func() {
+				_ = resp.Body.Close()
+			}()
+
 			buf, err := ioutil.ReadAll(resp.Body)
 			log.Printf("in thread %d, get buf length %d\n", index, len(buf))
 			if err != nil {
@@ -245,7 +248,7 @@ func getMP3(content string, out string) error {
 			c <- true
 		}(i, c)
 		i++
-		length -= TTS_SEG_LEN
+		length -= TtsSegLen
 	}
 	for _, ch := range chans {
 		if !<-ch {
@@ -270,7 +273,8 @@ func getContent(srcPath string) (*readability.Article, error) {
 	}
 	r, _ := regexp.Compile(srcPath[strings.LastIndex(srcPath, "/")+1:strings.LastIndex(srcPath, ".")] + `_\d+`)
 
-	for nextLink != "" && !strings.HasSuffix(nextLink, "/") && r.MatchString(nextLink[strings.LastIndex(nextLink, "/")+1:strings.LastIndex(nextLink, ".")]) {
+	lastPart := nextLink[strings.LastIndex(nextLink, "/")+1 : strings.LastIndex(nextLink, ".")]
+	for nextLink != "" && !strings.HasSuffix(nextLink, "/") && (len(lastPart) == 1 || r.MatchString(lastPart)) {
 		l, _ := url.Parse(srcPath)
 		nl, _ := url.Parse(nextLink)
 		nl = l.ResolveReference(nl)
@@ -281,18 +285,20 @@ func getContent(srcPath string) (*readability.Article, error) {
 		article.Content += article1.Content
 		article.TextContent += article1.TextContent
 		nextLink = getNextLink(buf1)
+		lastPart = nextLink[strings.LastIndex(nextLink, "/")+1 : strings.LastIndex(nextLink, ".")]
 	}
 
 	return article, nil
 }
 
-func determineEncoding(r *bufio.Reader) encoding.Encoding {
-	bytes, err := r.Peek(1024)
+func determineEncoding(r *bufio.Reader, contentType string) encoding.Encoding {
+	nBytes, err := r.Peek(1024)
 	if err != nil {
 		log.Printf("Fetcher error:%v\n", err)
 		return unicode.UTF8
 	}
-	e, _, _ := charset.DetermineEncoding(bytes, "")
+	e, _, _ := charset.DetermineEncoding(nBytes, contentType)
+	//log.Println(e)
 	return e
 }
 
@@ -301,7 +307,7 @@ func getOneArticle(dest string) (*readability.Article, []byte) {
 		pageURL   string
 		srcReader io.Reader
 	)
-
+	log.Printf("Getting page: %s\n", dest)
 	req, err := http.NewRequest(http.MethodGet, dest, nil)
 	if err != nil {
 		log.Printf("Error creating req to %s. %v", dest, err)
@@ -315,11 +321,13 @@ func getOneArticle(dest string) (*readability.Article, []byte) {
 		return nil, nil
 	}
 	bodyReader := bufio.NewReader(resp.Body)
-	e := determineEncoding(bodyReader)
+	e := determineEncoding(bodyReader, resp.Header.Get("Content-Type"))
 	utf8Reader := transform.NewReader(bodyReader, e.NewDecoder())
 	srcReader = utf8Reader
 	pageURL = dest
-	defer resp.Body.Close()
+	defer func() {
+		_ = resp.Body.Close()
+	}()
 	buf := bytes.NewBuffer(nil)
 	tee := io.TeeReader(srcReader, buf)
 	article, err := readability.FromReader(tee, pageURL)
@@ -360,13 +368,15 @@ func getNextLink(buf []byte) string {
 
 func mergeMP3(infiles map[int][]byte, out string) error {
 	outfile, err := os.Create(filepath.FromSlash(out))
-	defer outfile.Close()
+
 	if err != nil {
 		return err
 	}
-
 	for i := 0; i < len(infiles); i++ {
-		outfile.Write(infiles[i])
+		_, err := outfile.Write(infiles[i])
+		if err != nil {
+			return err
+		}
 	}
-	return nil
+	return outfile.Close()
 }

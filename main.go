@@ -19,6 +19,8 @@ import (
 	"strings"
 	"time"
 
+	"golang.org/x/sys/unix"
+
 	"github.com/go-shiori/go-readability"
 	"github.com/google/brotli/go/cbrotli"
 	"golang.org/x/net/html"
@@ -255,6 +257,7 @@ func getMP3(content string, out string) error {
 			return errors.New("error getting mp3")
 		}
 	}
+
 	err := mergeMP3(mp3s, out)
 	if err != nil {
 		return err
@@ -273,8 +276,10 @@ func getContent(srcPath string) (*readability.Article, error) {
 	}
 	r, _ := regexp.Compile(srcPath[strings.LastIndex(srcPath, "/")+1:strings.LastIndex(srcPath, ".")] + `_\d+`)
 
-	lastPart := nextLink[strings.LastIndex(nextLink, "/")+1 : strings.LastIndex(nextLink, ".")]
-	for nextLink != "" && !strings.HasSuffix(nextLink, "/") && (len(lastPart) == 1 || r.MatchString(lastPart)) {
+	//lastPart := nextLink[strings.LastIndex(nextLink, "/")+1 : strings.LastIndex(nextLink, ".")]
+	for nextLink != "" && !strings.HasSuffix(nextLink, "/") &&
+		(len(nextLink[strings.LastIndex(nextLink, "/")+1:strings.LastIndex(nextLink, ".")]) == 1 ||
+			r.MatchString(nextLink[strings.LastIndex(nextLink, "/")+1:strings.LastIndex(nextLink, ".")])) {
 		l, _ := url.Parse(srcPath)
 		nl, _ := url.Parse(nextLink)
 		nl = l.ResolveReference(nl)
@@ -285,7 +290,7 @@ func getContent(srcPath string) (*readability.Article, error) {
 		article.Content += article1.Content
 		article.TextContent += article1.TextContent
 		nextLink = getNextLink(buf1)
-		lastPart = nextLink[strings.LastIndex(nextLink, "/")+1 : strings.LastIndex(nextLink, ".")]
+		//lastPart = nextLink[strings.LastIndex(nextLink, "/")+1 : strings.LastIndex(nextLink, ".")]
 	}
 
 	return article, nil
@@ -368,15 +373,18 @@ func getNextLink(buf []byte) string {
 
 func mergeMP3(infiles map[int][]byte, out string) error {
 	outfile, err := os.Create(filepath.FromSlash(out))
+	iovec := make([][]byte, len(infiles))
 
 	if err != nil {
 		return err
 	}
+
 	for i := 0; i < len(infiles); i++ {
-		_, err := outfile.Write(infiles[i])
-		if err != nil {
-			return err
-		}
+		iovec = append(iovec, infiles[i])
+	}
+	_, err = unix.Writev(int(outfile.Fd()), iovec)
+	if err != nil {
+		return err
 	}
 	return outfile.Close()
 }

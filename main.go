@@ -180,7 +180,7 @@ func main() {
 	SCHEME = "https://"
 	MP3CACHE = make(map[string]string)
 	http.HandleFunc("/", defaultHandler)
-	localPort := "9001"
+	localPort := "9005"
 	if len(os.Args) > 3 {
 		localPort = os.Args[3]
 	}

@@ -21,8 +21,8 @@ import (
 
 	"golang.org/x/sys/unix"
 
+	"github.com/andybalholm/brotli"
 	"github.com/go-shiori/go-readability"
-	"github.com/google/brotli/go/cbrotli"
 	"golang.org/x/net/html"
 	"golang.org/x/net/html/charset"
 	"golang.org/x/text/encoding"
@@ -92,7 +92,7 @@ func defaultHandler(w http.ResponseWriter, req *http.Request) {
 			b = bytes.ReplaceAll(b, []byte("<body>"), []byte("<body><style>a{color:#011;}</style><style>ul.list.sec {display: none;}</style>"))
 		}
 		newb := new(bytes.Buffer)
-		gw := cbrotli.NewWriter(newb, cbrotli.WriterOptions{Quality: 11, LGWin: 24})
+		gw := brotli.NewWriter(newb)
 		_, _ = gw.Write(b)
 		_ = gw.Close()
 		b = newb.Bytes()

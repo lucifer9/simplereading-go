@@ -19,8 +19,6 @@ import (
 	"strings"
 	"time"
 
-	"golang.org/x/sys/unix"
-
 	"github.com/andybalholm/brotli"
 	"github.com/go-shiori/go-readability"
 	"golang.org/x/net/html"
@@ -370,21 +368,18 @@ func getNextLink(buf []byte) string {
 	}
 	return nextLink
 }
-
 func mergeMP3(infiles map[int][]byte, out string) error {
 	outfile, err := os.Create(filepath.FromSlash(out))
-	iovec := make([][]byte, len(infiles))
 
 	if err != nil {
 		return err
 	}
-
 	for i := 0; i < len(infiles); i++ {
-		iovec = append(iovec, infiles[i])
+		_, err := outfile.Write(infiles[i])
+		if err != nil {
+			return err
+		}
 	}
-	_, err = unix.Writev(int(outfile.Fd()), iovec)
-	if err != nil {
-		return err
-	}
+
 	return outfile.Close()
 }

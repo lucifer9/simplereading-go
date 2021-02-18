@@ -55,7 +55,6 @@ func defaultHandler(w http.ResponseWriter, req *http.Request) {
 		log.Println(r.URL.String())
 	}
 	rp.ModifyResponse = func(r *http.Response) error {
-
 		if cookie := r.Header.Get("Set-Cookie"); cookie != "" {
 			cookie = strings.ReplaceAll(cookie, ".booklink.me", HOST)
 			r.Header.Set("Set-Cookie", cookie)
@@ -74,12 +73,9 @@ func defaultHandler(w http.ResponseWriter, req *http.Request) {
 		if err != nil {
 			return err
 		}
-		// log.Println(r.Header.Get("Content-Encoding"))
 		if c := r.Header.Get("Content-Encoding"); c == "gzip" {
-			// log.Printf("\n%d\n\n", len(b))
 			gr, _ := gzip.NewReader(bytes.NewBuffer(b))
 			b, err = ioutil.ReadAll(gr)
-			// log.Printf("\n%d\n\n", len(b))
 			_ = gr.Close()
 			if err != nil {
 				return err
@@ -99,56 +95,57 @@ func defaultHandler(w http.ResponseWriter, req *http.Request) {
 		r.ContentLength = int64(len(b))
 		r.Header.Set("Content-Encoding", "br")
 		r.Header.Set("Content-Length", strconv.Itoa(len(b)))
-		// log.Printf("\n%s: \t%+v\n\n", "resp", r)
 		return nil
 	}
 
 	qs := req.URL.Query()
 	dest := qs.Get("dest")
 	listen := qs.Get("listen")
-	if dest != "" {
-		fmt.Println(dest)
-		article, err := getContent(dest)
-		if err != nil {
-			error500(w, err)
-			return
-		}
-		title := article.Title
-		content := article.Content
-		w.WriteHeader(http.StatusOK)
-		w.Header().Set("Content-Type", "text/html;charset=UTF-8")
-		toWrite := `<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0" /><title>` +
-			title + `</title></head><body><h3>` + title + `</h3><style>body {background-color: black;font-size:` + strconv.Itoa(FONTSIZE) +
-			";color:#fff;}</style>\n" + content + `</body></html>`
-		_, _ = w.Write([]byte(toWrite))
-	} else if listen != "" {
-		fmt.Println(listen)
-		out := MP3CACHE[listen]
-		if out == "" {
-			out = time.Now().Format("20060102150405") + ".mp3"
-
-			outFile := filepath.Join(WEBROOT, out)
-			article, err := getContent(listen)
+	if dest == "" && listen == "" {
+		rp.ServeHTTP(w, req)
+	} else {
+		if dest != "" {
+			fmt.Println(dest)
+			article, err := getContent(dest)
 			if err != nil {
 				error500(w, err)
 				return
 			}
-			content := article.TextContent
-			if err := getMP3(content, outFile); err != nil {
-				error500(w, err)
-				return
-			}
-			MP3CACHE[listen] = out
+			title := article.Title
+			content := article.Content
+			w.WriteHeader(http.StatusOK)
+			w.Header().Set("Content-Type", "text/html;charset=UTF-8")
+			toWrite := `<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0" /><title>` +
+				title + `</title></head><body><h3>` + title + `</h3><style>body {background-color: black;font-size:` + strconv.Itoa(FONTSIZE) +
+				";color:#fff;}</style>\n" + content + `</body></html>`
+			_, _ = w.Write([]byte(toWrite))
 		}
-		w.WriteHeader(http.StatusOK)
-		w.Header().Set("Content-Type", "text/html;charset=UTF-8")
-		mp3 := SCHEME + HOST + ":" + strconv.Itoa(PORT) + `/` + out
-		toWrite := `<!doctype html><html><body><audio controls height="270" width="480"><source src="` + mp3 + `"></audio></body></html>`
-		_, _ = w.Write([]byte(toWrite))
-	} else {
-		rp.ServeHTTP(w, req)
-	}
+		if listen != "" {
+			fmt.Println(listen)
+			out := MP3CACHE[listen]
+			if out == "" {
+				out = time.Now().Format("20060102150405") + ".mp3"
 
+				outFile := filepath.Join(WEBROOT, out)
+				article, err := getContent(listen)
+				if err != nil {
+					error500(w, err)
+					return
+				}
+				content := article.TextContent
+				if err := getMP3(content, outFile); err != nil {
+					error500(w, err)
+					return
+				}
+				MP3CACHE[listen] = out
+			}
+			w.WriteHeader(http.StatusOK)
+			w.Header().Set("Content-Type", "text/html;charset=UTF-8")
+			mp3 := SCHEME + HOST + ":" + strconv.Itoa(PORT) + `/` + out
+			toWrite := `<!doctype html><html><body><audio controls height="270" width="480"><source src="` + mp3 + `"></audio></body></html>`
+			_, _ = w.Write([]byte(toWrite))
+		}
+	}
 }
 
 func error500(w http.ResponseWriter, err error) {
@@ -170,7 +167,7 @@ func main() {
 	} else {
 		HOST = "bj.dujie.name"
 	}
-	if len(os.Args) > 2 {
+	if len(os.Args) > 2 { //nolint
 		PORT, _ = strconv.Atoi(os.Args[2])
 	} else {
 		PORT = 8888
@@ -179,13 +176,13 @@ func main() {
 	MP3CACHE = make(map[string]string)
 	http.HandleFunc("/", defaultHandler)
 	localPort := "9005"
-	if len(os.Args) > 3 {
+	if len(os.Args) > 3 { //nolint
 		localPort = os.Args[3]
 	}
 	_ = http.ListenAndServe("127.0.0.1:"+localPort, nil)
 }
 
-func getMP3(content string, out string) error {
+func getMP3(content, out string) error {
 	runes := []rune(content)
 	length := len(runes)
 	total := length
@@ -219,10 +216,10 @@ func getMP3(content string, out string) error {
 			data.Set("_res_tag_", "audio")
 
 			client := &http.Client{}
-			req, err := http.NewRequest(http.MethodPost, TtsBase, strings.NewReader(data.Encode()))
+			req, err := http.NewRequest(http.MethodPost, TtsBase, strings.NewReader(data.Encode())) //nolint
 			if err != nil {
 				log.Printf("Error creating tts req %v\n", req)
-				c <- false
+				success <- false
 				return
 			}
 			resp, err := client.Do(req)
@@ -230,7 +227,7 @@ func getMP3(content string, out string) error {
 			if err != nil || (resp != nil && resp.Header.Get("Content-Type") != "audio/mp3") {
 				buf, _ := ioutil.ReadAll(resp.Body)
 				log.Printf("Error get tts resp %v\n", string(buf))
-				c <- false
+				success <- false
 				return
 			}
 			defer func() {
@@ -241,11 +238,11 @@ func getMP3(content string, out string) error {
 			log.Printf("in thread %d, get buf length %d\n", index, len(buf))
 			if err != nil {
 				log.Printf("Error reading tts resp %v\n", resp)
-				c <- false
+				success <- false
 				return
 			}
 			mp3s[index] = buf
-			c <- true
+			success <- true
 		}(i, c)
 		i++
 		length -= TtsSegLen
@@ -262,8 +259,8 @@ func getMP3(content string, out string) error {
 	}
 	return nil
 }
+
 func getContent(srcPath string) (*readability.Article, error) {
-	// Open or fetch web page that will be parsed
 	article, buf := getOneArticle(srcPath)
 	if article == nil {
 		return article, errors.New("null article")
@@ -273,8 +270,7 @@ func getContent(srcPath string) (*readability.Article, error) {
 		return article, nil
 	}
 	r, _ := regexp.Compile(srcPath[strings.LastIndex(srcPath, "/")+1:strings.LastIndex(srcPath, ".")] + `_\d+`)
-
-	//lastPart := nextLink[strings.LastIndex(nextLink, "/")+1 : strings.LastIndex(nextLink, ".")]
+	//nolint // lastPart := nextLink[strings.LastIndex(nextLink, "/")+1 : strings.LastIndex(nextLink, ".")]
 	for nextLink != "" && !strings.HasSuffix(nextLink, "/") &&
 		(len(nextLink[strings.LastIndex(nextLink, "/")+1:strings.LastIndex(nextLink, ".")]) == 1 ||
 			r.MatchString(nextLink[strings.LastIndex(nextLink, "/")+1:strings.LastIndex(nextLink, ".")])) {
@@ -288,30 +284,30 @@ func getContent(srcPath string) (*readability.Article, error) {
 		article.Content += article1.Content
 		article.TextContent += article1.TextContent
 		nextLink = getNextLink(buf1)
-		//lastPart = nextLink[strings.LastIndex(nextLink, "/")+1 : strings.LastIndex(nextLink, ".")]
+		// lastPart = nextLink[strings.LastIndex(nextLink, "/")+1 : strings.LastIndex(nextLink, ".")]
 	}
 
 	return article, nil
 }
 
 func determineEncoding(r *bufio.Reader, contentType string) encoding.Encoding {
-	nBytes, err := r.Peek(1024)
+	nBytes, err := r.Peek(1024) //nolint
 	if err != nil {
 		log.Printf("Fetcher error:%v\n", err)
 		return unicode.UTF8
 	}
 	e, _, _ := charset.DetermineEncoding(nBytes, contentType)
-	//log.Println(e)
 	return e
 }
 
-func getOneArticle(dest string) (*readability.Article, []byte) {
+// Open or fetch web page that will be parsed
+func getOneArticle(dest string) (*readability.Article, []byte) { //nolint
 	var (
 		pageURL   string
 		srcReader io.Reader
 	)
 	log.Printf("Getting page: %s\n", dest)
-	req, err := http.NewRequest(http.MethodGet, dest, nil)
+	req, err := http.NewRequest(http.MethodGet, dest, nil) //nolint
 	if err != nil {
 		log.Printf("Error creating req to %s. %v", dest, err)
 		return nil, nil

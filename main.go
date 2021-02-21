@@ -85,6 +85,7 @@ func defaultHandler(w http.ResponseWriter, req *http.Request) {
 		if index := bytes.Index(b, []byte("slist sec")); index != -1 {
 			b = bytes.ReplaceAll(b, []byte("<body>"), []byte("<body><style>a{color:#011;}</style><style>ul.list.sec {display: none;}</style>"))
 		}
+		b = bytes.ReplaceAll(b, []byte("www.google.com/search?ie=utf-8&"), []byte("duckduckgo.com/?ia=qa&"))
 		newb := new(bytes.Buffer)
 		gw := brotli.NewWriter(newb)
 		_, _ = gw.Write(b)

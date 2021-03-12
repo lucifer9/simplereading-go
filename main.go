@@ -7,12 +7,12 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"log"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"regexp"
 	"strconv"
@@ -65,7 +65,7 @@ func defaultHandler(w http.ResponseWriter, req *http.Request) {
 			}
 		}
 
-		b, err := ioutil.ReadAll(r.Body)
+		b, err := io.ReadAll(r.Body)
 		if err != nil {
 			return err
 		}
@@ -75,7 +75,7 @@ func defaultHandler(w http.ResponseWriter, req *http.Request) {
 		}
 		if c := r.Header.Get("Content-Encoding"); c == "gzip" {
 			gr, _ := gzip.NewReader(bytes.NewBuffer(b))
-			b, err = ioutil.ReadAll(gr)
+			b, err = io.ReadAll(gr)
 			_ = gr.Close()
 			if err != nil {
 				return err
@@ -91,7 +91,7 @@ func defaultHandler(w http.ResponseWriter, req *http.Request) {
 		_, _ = gw.Write(b)
 		_ = gw.Close()
 		b = newb.Bytes()
-		body := ioutil.NopCloser(bytes.NewReader(b))
+		body := io.NopCloser(bytes.NewReader(b))
 		r.Body = body
 		r.ContentLength = int64(len(b))
 		r.Header.Set("Content-Encoding", "br")
@@ -153,7 +153,13 @@ func error500(w http.ResponseWriter, err error) {
 	w.WriteHeader(http.StatusInternalServerError)
 	_, _ = w.Write([]byte(err.Error()))
 }
+
 func main() {
+	cmd := exec.Command("mkdir", "-p", "/tmp/audio")
+	err := cmd.Run()
+	if err != nil {
+		log.Fatalln(err.Error())
+	}
 	BOOKSITE = "https://m.booklink.me/"
 	FONTSIZE = 17
 	WEBROOT = "/tmp/audio"
@@ -203,19 +209,17 @@ func getMP3(content, out string) error {
 			data := url.Values{}
 			// data={'lan':'zh','ie':'UTF-8','spd':10,'tex':urllib.parse.quote(words), 'per': 5118, 'cuid':'baidu_speech_demo','idx':1,'cod':2,'ctp':1,'pdt':1,'vol':8,'pit':5,'_res_tag_':'audio'}
 			data.Set("lan", "zh")
-			data.Set("ie", "UTF-8")
 			data.Set("spd", strconv.Itoa(TtsSpd))
 			data.Set("tex", seq)
 			data.Set("per", strconv.Itoa(TtsPer))
-			data.Set("cuid", "baidu_speech_demo")
 			data.Set("idx", "1")
-			data.Set("cod", "2")
+			data.Set("cuid", "baidu_speech_demo")
 			data.Set("ctp", "1")
-			data.Set("pdt", "1")
+			data.Set("cod", "2")
 			data.Set("vol", strconv.Itoa(TtsVol))
 			data.Set("pit", "5")
+			data.Set("pdt", "301")
 			data.Set("_res_tag_", "audio")
-
 			client := &http.Client{}
 			req, err := http.NewRequest(http.MethodPost, TtsBase, strings.NewReader(data.Encode())) //nolint
 			if err != nil {
@@ -226,7 +230,7 @@ func getMP3(content, out string) error {
 			resp, err := client.Do(req)
 
 			if err != nil || (resp != nil && resp.Header.Get("Content-Type") != "audio/mp3") {
-				buf, _ := ioutil.ReadAll(resp.Body)
+				buf, _ := io.ReadAll(resp.Body)
 				log.Printf("Error get tts resp %v\n", string(buf))
 				success <- false
 				return
@@ -235,7 +239,7 @@ func getMP3(content, out string) error {
 				_ = resp.Body.Close()
 			}()
 
-			buf, err := ioutil.ReadAll(resp.Body)
+			buf, err := io.ReadAll(resp.Body)
 			log.Printf("in thread %d, get buf length %d\n", index, len(buf))
 			if err != nil {
 				log.Printf("Error reading tts resp %v\n", resp)

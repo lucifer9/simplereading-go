@@ -218,7 +218,7 @@ func getMP3(content, out string) error {
 			data.Set("cod", "2")
 			data.Set("vol", strconv.Itoa(TtsVol))
 			data.Set("pit", "5")
-			data.Set("pdt", "301")
+			data.Set("pdt", "220")
 			data.Set("_res_tag_", "audio")
 			client := &http.Client{}
 			req, err := http.NewRequest(http.MethodPost, TtsBase, strings.NewReader(data.Encode())) //nolint

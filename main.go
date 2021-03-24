@@ -123,6 +123,7 @@ func defaultHandler(w http.ResponseWriter, req *http.Request) {
 		}
 		if listen != "" {
 			fmt.Println(listen)
+			listen = strings.TrimPrefix(listen, SCHEME+HOST+"/?dest=")
 			out := MP3CACHE[listen]
 			if out == "" {
 				out = time.Now().Format("20060102150405") + ".mp3"

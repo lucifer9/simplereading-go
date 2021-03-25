@@ -38,7 +38,7 @@ var (
 	TtsVol    int
 	UA        string
 	HOST      string
-	PORT      int
+	PORT      string
 	SCHEME    string
 	MP3CACHE  map[string]string
 )
@@ -60,7 +60,7 @@ func defaultHandler(w http.ResponseWriter, req *http.Request) {
 		}
 		if loc := r.Header.Get("Location"); loc != "" {
 			if i := strings.Index(loc, HOST); i == -1 {
-				r.Header.Set("Location", SCHEME+HOST+":"+strconv.Itoa(PORT)+"/?dest="+loc)
+				r.Header.Set("Location", SCHEME+HOST+":"+PORT+"/?dest="+loc)
 			}
 		}
 
@@ -142,7 +142,7 @@ func defaultHandler(w http.ResponseWriter, req *http.Request) {
 			}
 			w.WriteHeader(http.StatusOK)
 			w.Header().Set("Content-Type", "text/html;charset=UTF-8")
-			mp3 := SCHEME + HOST + ":" + strconv.Itoa(PORT) + `/` + out
+			mp3 := SCHEME + HOST + ":" + PORT + `/` + out
 			toWrite := `<!doctype html><html><body><audio controls height="270" width="480"><source src="` + mp3 + `"></audio></body></html>`
 			_, _ = w.Write([]byte(toWrite))
 		}
@@ -157,31 +157,30 @@ func error500(w http.ResponseWriter, err error) {
 func main() {
 	BOOKSITE = "https://m.booklink.me/"
 	FONTSIZE = 17
-	WEBROOT = "/tmp/audio"
+	WEBROOT = "/audio"
 	TtsBase = "http://tsn.baidu.com/text2audio"
 	TtsSegLen = 500
 	TtsPer = 5118
 	TtsSpd = 10
 	TtsVol = 8
 	UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/75.0.3770.90 Safari/537.36"
-	if len(os.Args) > 1 {
-		HOST = os.Args[1] + ".dujie.name"
-	} else {
-		HOST = "bj.dujie.name"
-	}
-	if len(os.Args) > 2 { //nolint
-		PORT, _ = strconv.Atoi(os.Args[2])
-	} else {
-		PORT = 8888
-	}
+	HOST = os.Getenv("BOOK_HOST")
+	PORT = os.Getenv("BOOK_PORT")
 	SCHEME = "https://"
 	MP3CACHE = make(map[string]string)
 	http.HandleFunc("/", defaultHandler)
-	localPort := "9005"
-	if len(os.Args) > 3 { //nolint
-		localPort = os.Args[3]
+	localPort := os.Getenv("LOCAL_PORT")
+	if localPort == "" {
+		localPort = "9005"
 	}
-	_ = http.ListenAndServe("127.0.0.1:"+localPort, nil)
+	listenLocal := os.Getenv("LISTEN_LOCAL")
+	var listenAddr string
+	if listenLocal != "" {
+		listenAddr = "127.0.0.1"
+	} else {
+		listenAddr = "0.0.0.0"
+	}
+	_ = http.ListenAndServe(listenAddr+":"+localPort, nil)
 }
 
 func getMP3(content, out string) error {

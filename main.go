@@ -12,7 +12,6 @@ import (
 	"net/http/httputil"
 	"net/url"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"regexp"
 	"strconv"
@@ -156,11 +155,6 @@ func error500(w http.ResponseWriter, err error) {
 }
 
 func main() {
-	cmd := exec.Command("mkdir", "-p", "/tmp/audio")
-	err := cmd.Run()
-	if err != nil {
-		log.Fatalln(err.Error())
-	}
 	BOOKSITE = "https://m.booklink.me/"
 	FONTSIZE = 17
 	WEBROOT = "/tmp/audio"

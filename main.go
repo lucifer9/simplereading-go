@@ -81,8 +81,11 @@ func defaultHandler(w http.ResponseWriter, req *http.Request) {
 			}
 		}
 		b = bytes.ReplaceAll(b, []byte("adsbygoogle"), []byte("xxxxxxx"))
+		b = bytes.ReplaceAll(b, []byte("<body>"), []byte("<body><style>a:hover{color:#fee}a{color:#fee;}body{background-color: black;color: #fff;}</style>"))
+		b = bytes.ReplaceAll(b, []byte("<li class=\"hla\">"), []byte("<li class=\"\">"))
+		b = bytes.ReplaceAll(b, []byte("<font color=\"#646464\""), []byte("<font color=\"#aaa\""))
 		if index := bytes.Index(b, []byte("slist sec")); index != -1 {
-			b = bytes.ReplaceAll(b, []byte("<body>"), []byte("<body><style>a{color:#011;}</style><style>ul.list.sec {display: none;}</style>"))
+			b = bytes.ReplaceAll(b, []byte("<body>"), []byte("<style>ul.list.sec {display: none;}</style>"))
 		}
 		b = bytes.ReplaceAll(b, []byte("www.google.com/search?ie=utf-8&"), []byte("duckduckgo.com/?ia=qa&"))
 		newb := new(bytes.Buffer)
@@ -262,7 +265,7 @@ func getMP3(content, out string) error {
 func getContent(srcPath string) (*readability.Article, error) {
 	article, buf := getOneArticle(srcPath)
 	if article == nil {
-		return article, errors.New("null article")
+		return nil, errors.New("null article")
 	}
 	nextLink := getNextLink(buf)
 	if nextLink == "" {

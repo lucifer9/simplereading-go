@@ -109,19 +109,23 @@ func defaultHandler(w http.ResponseWriter, req *http.Request) {
 	} else {
 		if dest != "" {
 			fmt.Println(dest)
-			article, err := getContent(dest)
-			if err != nil {
-				error500(w, err)
-				return
+			if strings.Contains(dest, "fkzww.net") {
+				http.Redirect(w, req, dest, 302)
+			} else {
+				article, err := getContent(dest)
+				if err != nil {
+					error500(w, err)
+					return
+				}
+				title := article.Title
+				content := article.Content
+				w.WriteHeader(http.StatusOK)
+				w.Header().Set("Content-Type", "text/html;charset=UTF-8")
+				toWrite := `<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0" /><title>` +
+					title + `</title></head><body><h3>` + title + `</h3><style>body {background-color: black;font-size:` + strconv.Itoa(FONTSIZE) +
+					";color:#fff;}</style>\n" + content + `</body></html>`
+				_, _ = w.Write([]byte(toWrite))
 			}
-			title := article.Title
-			content := article.Content
-			w.WriteHeader(http.StatusOK)
-			w.Header().Set("Content-Type", "text/html;charset=UTF-8")
-			toWrite := `<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0" /><title>` +
-				title + `</title></head><body><h3>` + title + `</h3><style>body {background-color: black;font-size:` + strconv.Itoa(FONTSIZE) +
-				";color:#fff;}</style>\n" + content + `</body></html>`
-			_, _ = w.Write([]byte(toWrite))
 		}
 		if listen != "" {
 			fmt.Println(listen)

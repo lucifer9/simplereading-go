@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"net"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
@@ -46,6 +47,26 @@ var (
 func defaultHandler(w http.ResponseWriter, req *http.Request) {
 	rpURL, _ := url.Parse(BOOKSITE)
 	rp := httputil.NewSingleHostReverseProxy(rpURL)
+	rp.Transport = &http.Transport{
+		Proxy: http.ProxyFromEnvironment,
+		DialContext: (&net.Dialer{
+			Timeout:   3 * time.Second,
+			KeepAlive: 30 * time.Second,
+			DualStack: true,
+		}).DialContext,
+		MaxIdleConns:          100,
+		IdleConnTimeout:       90 * time.Second,
+		TLSHandshakeTimeout:   10 * time.Second,
+		ExpectContinueTimeout: 1 * time.Second,
+	}
+	rp.ErrorHandler = func(w http.ResponseWriter, r *http.Request, err error) {
+		log.Printf("Fetcher error:%v\n", err)
+		// http.Error(w, err.Error(), http.StatusInternalServerError)
+		w.WriteHeader(http.StatusOK)
+		w.Header().Set("Refresh", "3")
+		_, _ = w.Write([]byte("<html><head><meta http-equiv=\"refresh\" content=\"3\"/></head><body>Error: " + err.Error() + "</body></html>"))
+	}
+
 	rp.Director = func(r *http.Request) {
 		r.Host = "m.booklink.me"
 		r.URL.Host = r.Host

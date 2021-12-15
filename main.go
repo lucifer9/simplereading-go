@@ -185,7 +185,7 @@ func error500(w http.ResponseWriter, err error) {
 func main() {
 	BOOKSITE = "https://m.booklink.me/"
 	FONTSIZE = 17
-	WEBROOT = "/audio"
+	WEBROOT = "/tmp"
 	TtsBase = "http://tsn.baidu.com/text2audio"
 	TtsSegLen = 60
 	TtsPer = 5118

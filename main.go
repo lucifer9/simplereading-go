@@ -187,7 +187,7 @@ func main() {
 	FONTSIZE = 17
 	WEBROOT = "/audio"
 	TtsBase = "http://tsn.baidu.com/text2audio"
-	TtsSegLen = 500
+	TtsSegLen = 60
 	TtsPer = 5118
 	TtsSpd = 10
 	TtsVol = 8

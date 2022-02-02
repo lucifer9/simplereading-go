@@ -102,9 +102,9 @@ func defaultHandler(w http.ResponseWriter, req *http.Request) {
 			}
 		}
 		b = bytes.ReplaceAll(b, []byte("adsbygoogle"), []byte("xxxxxxx"))
-		b = bytes.ReplaceAll(b, []byte("<body>"), []byte("<body><style>a:hover{color:#fff}a{color:#fff;}body{background-color: black;color: #fff;}</style>"))
+		// b = bytes.ReplaceAll(b, []byte("<body>"), []byte("<body><style>a:hover{color:#fff}a{color:#fff;}body{background-color: black;color: #fff;}</style>"))
 		b = bytes.ReplaceAll(b, []byte("<li class=\"hla\">"), []byte("<li class=\"\">"))
-		b = bytes.ReplaceAll(b, []byte("<font color=\"#646464\""), []byte("<font color=\"#aaa\""))
+		// b = bytes.ReplaceAll(b, []byte("<font color=\"#646464\""), []byte("<font color=\"#aaa\""))
 		if index := bytes.Index(b, []byte("slist sec")); index != -1 {
 			b = bytes.ReplaceAll(b, []byte("<body>"), []byte("<style>ul.list.sec {display: none;}</style>"))
 		}

@@ -29,6 +29,11 @@ import (
 )
 
 var (
+	version  = "0.9"
+	build    = "Custom"
+)
+
+var (
 	BOOKSITE  string
 	FONTSIZE  int
 	WEBROOT   string

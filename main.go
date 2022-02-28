@@ -383,7 +383,8 @@ func getOneArticle(dest string) (*readability.Article, []byte) { //nolint
 	}()
 	buf := bytes.NewBuffer(nil)
 	tee := io.TeeReader(srcReader, buf)
-	article, err := readability.FromReader(tee, pageURL)
+	parsedURL, _ := url.Parse(pageURL)
+	article, err := readability.FromReader(tee, parsedURL)
 	if err != nil {
 		return nil, nil
 	}

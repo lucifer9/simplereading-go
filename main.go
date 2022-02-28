@@ -29,8 +29,8 @@ import (
 )
 
 var (
-	version  = "0.9"
-	build    = "Custom"
+	version = "0.9"
+	build   = "Custom"
 )
 
 var (
@@ -57,7 +57,6 @@ func defaultHandler(w http.ResponseWriter, req *http.Request) {
 		DialContext: (&net.Dialer{
 			Timeout:   3 * time.Second,
 			KeepAlive: 30 * time.Second,
-			DualStack: true,
 		}).DialContext,
 		MaxIdleConns:          100,
 		IdleConnTimeout:       90 * time.Second,
@@ -86,7 +85,17 @@ func defaultHandler(w http.ResponseWriter, req *http.Request) {
 		}
 		if loc := r.Header.Get("Location"); loc != "" {
 			if i := strings.Index(loc, HOST); i == -1 {
-				r.Header.Set("Location", SCHEME+HOST+":"+PORT+"/?dest="+loc)
+				var sb strings.Builder
+				sb.WriteString(SCHEME)
+				sb.WriteString(HOST)
+				if PORT != "" {
+					sb.WriteString(":")
+					sb.WriteString(PORT)
+				}
+				sb.WriteString("/?dest=")
+				sb.WriteString(loc)
+				//r.Header.Set("Location", SCHEME+HOST+":"+PORT+"/?dest="+loc)
+				r.Header.Set("Location", sb.String())
 			}
 		}
 
@@ -178,7 +187,17 @@ func defaultHandler(w http.ResponseWriter, req *http.Request) {
 			}
 			w.WriteHeader(http.StatusOK)
 			w.Header().Set("Content-Type", "text/html;charset=UTF-8")
-			mp3 := SCHEME + HOST + ":" + PORT + `/` + out
+			var sb strings.Builder
+			sb.WriteString(SCHEME)
+			sb.WriteString(HOST)
+			if PORT != "" {
+				sb.WriteString(":")
+				sb.WriteString(PORT)
+			}
+			sb.WriteString(out)
+			//r.Header.Set("Location", SCHEME+HOST+":"+PORT+"/?dest="+loc)
+			mp3 := sb.String()
+			//mp3 := SCHEME + HOST + ":" + PORT + `/` + out
 			toWrite := `<!doctype html><html><body><audio controls height="270" width="480"><source src="` + mp3 + `"></audio></body></html>`
 			_, _ = w.Write([]byte(toWrite))
 		}
@@ -199,7 +218,7 @@ func main() {
 	TtsPer = 5118
 	TtsSpd = 10
 	TtsVol = 8
-	UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/75.0.3770.90 Safari/537.36"
+	UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/98.0.4758.102 Safari/537.36"
 	HOST = os.Getenv("BOOK_HOST")
 	PORT = os.Getenv("BOOK_PORT")
 	SCHEME = "https://"

@@ -160,7 +160,7 @@ func defaultHandler(w http.ResponseWriter, req *http.Request) {
 				//	title + `</title></head><body><h3>` + title + `</h3><style>body {background-color: black;font-size:` + strconv.Itoa(FONTSIZE) +
 				//	";color:#fff;}</style>\n" + content + `</body></html>`
 				toWrite := `<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0" /><title>` +
-					title + `</title></head><body><h3>` + title + `</h3><style>body {font-size:` + strconv.Itoa(FONTSIZE) +
+					title + `</title></head><body><h3>` + title + `</h3><style> p{text-indent:2em; font-size:` + strconv.Itoa(FONTSIZE) +
 					";}</style>\n" + content + `</body></html>`
 				_, _ = w.Write([]byte(toWrite))
 			}

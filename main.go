@@ -29,7 +29,7 @@ import (
 )
 
 var (
-	version = "0.9.0"
+	version = "0.9.1"
 	build   = "Custom"
 )
 
@@ -144,7 +144,7 @@ func defaultHandler(w http.ResponseWriter, req *http.Request) {
 			var err error
 			var base *url.URL
 			var article *readability.Article
-			var re *regexp.Regexp
+			re, _ := regexp.Compile("xxx")
 			base, err = url.Parse(dest)
 			if err != nil {
 				error500(w, err)
